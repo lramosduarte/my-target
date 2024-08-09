@@ -55,10 +55,7 @@ healthBarBorder:SetBackdrop({
 
 local unitClassText = healthBar:CreateFontString(nil, "OVERLAY")
 unitClassText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-unitClassText:SetPoint("CENTER", healthBar, "CENTER", 0, 20)
-local unitTypeText = healthBar:CreateFontString(nil, "OVERLAY")
-unitTypeText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-unitTypeText:SetPoint("CENTER", healthBar, "CENTER", 0, -30)
+unitClassText:SetPoint("CENTER", healthBar, "CENTER", 0, -40)
 
 local healthTextLeft = healthBar:CreateFontString(nil, "OVERLAY")
 healthTextLeft:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
@@ -67,6 +64,10 @@ healthTextLeft:SetPoint("LEFT", healthBar, "LEFT", 0, 0)
 local healthTextCenter = healthBar:CreateFontString(nil, "OVERLAY")
 healthTextCenter:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
 healthTextCenter:SetPoint("CENTER", healthBar, "CENTER", 0, -20)
+
+local unitClassText = healthBar:CreateFontString(nil, "OVERLAY")
+unitClassText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+unitClassText:SetPoint("CENTER", healthTextCenter, "CENTER", 0, -10)
 
 local healthTextRight = healthBar:CreateFontString(nil, "OVERLAY")
 healthTextRight:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
@@ -77,21 +78,78 @@ local function UpdateHealth()
     local health = UnitHealth("target")
     local maxHealth = UnitHealthMax("target")
     local percent = health / maxHealth * 100
+    local unitClass = UnitClassification("target")
+
     healthBar:SetMinMaxValues(0, maxHealth)
     healthBar:SetValue(health)
 
     healthTextLeft:SetText(health .. " / " .. maxHealth)
     healthTextCenter:SetText(UnitName("target"))
     healthTextRight:SetText(string.format("%.1f", percent))
-    unitTypeText:SetText(UnitCreatureType("target"))
+    unitClassText:SetText(UnitCreatureType("target"))
 
-    local unitClass = UnitClassification("target")
     healthBarBorder:SetBackdropBorderColor(1,0,0)
-    unitClassText:SetText(unitClass)
     if rarityUnits[unitClass] then
-        unitClassText:SetText(rarityUnits[unitClass].label)
+        unitClassText:SetText(rarityUnits[unitClass].label .. " - " .. UnitCreatureType("target"))
         healthBarBorder:SetBackdropBorderColor(unpack(rarityUnits[unitClass].rgb))
     end
+end
+
+
+local powerBar = CreateFrame("StatusBar")
+powerBar:SetSize(225, 10)
+powerBar:SetPoint("CENTER", 0, 325)
+powerBar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
+powerBar:GetStatusBarTexture():SetHorizTile(false)
+powerBar:SetMinMaxValues(0, UnitHealthMax("target"))
+powerBar:SetValue(UnitHealth("target"))
+
+local powerBarBG = healthBar:CreateTexture(nil, "BACKGROUND")
+powerBarBG:SetAllPoints(true)
+powerBarBG:SetTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
+powerBarBG:SetVertexColor(1, 0.25, 0.25, 0.1)
+
+-- local healthBarBorder = CreateFrame("Frame", nil, healthBar, BackdropTemplateMixin and "BackdropTemplate")
+-- healthBarBorder:SetPoint("TOPLEFT", healthBar, "TOPLEFT", -5, 6)
+-- healthBarBorder:SetPoint("BOTTOMRIGHT", healthBar, "BOTTOMRIGHT", 5, -6)
+-- healthBarBorder:SetBackdrop({
+--     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+--     edgeSize = 16,
+-- })
+
+local powerTextLeft = powerBar:CreateFontString(nil, "OVERLAY")
+powerTextLeft:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+powerTextLeft:SetPoint("LEFT", powerBar, "LEFT", 0, 0)
+
+local powerTextCenter = powerBar:CreateFontString(nil, "OVERLAY")
+powerTextCenter:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+powerTextCenter:SetPoint("CENTER", powerBar, "CENTER", 0, 0)
+
+local powerTextRight = powerBar:CreateFontString(nil, "OVERLAY")
+powerTextRight:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+powerTextRight:SetPoint("RIGHT", powerBar, "RIGHT", 0, 0)
+
+for k, _ in pairs(PowerBarColor) do
+    print(k)
+end
+
+local function UpdatePower()
+    powerType, powerToken, _, _, _ = UnitPowerType("target")
+    if not powerToken then
+        return
+    end
+    local power = UnitPower("target")
+    local maxPower = UnitPowerMax("target")
+    local percent = power / maxPower * 100
+    powerInfo = PowerBarColor[powerToken]
+
+    powerBar:SetMinMaxValues(0, maxPower)
+    powerBar:SetValue(power)
+    powerBar:SetStatusBarColor(powerInfo.r, powerInfo.g, powerInfo.b)
+
+    powerTextLeft:SetText(power .. " / " .. maxPower)
+    powerTextCenter:SetText(powerInfo.atlasElementName)
+    powerTextRight:SetText(string.format("%.1f", percent))
 end
 
 local function CreateIconFrame(w, h)
@@ -191,6 +249,7 @@ frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 frame:RegisterEvent("UNIT_AURA")
 frame:RegisterEvent("UNIT_TARGET")
 frame:RegisterEvent("UNIT_HEALTH")
+frame:RegisterEvent("UNIT_POWER_UPDATE")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("UNIT_SPELLCAST_START")
 frame:RegisterEvent("UNIT_SPELLCAST_STOP")
@@ -201,6 +260,9 @@ frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 frame:SetScript("OnEvent", function(self, event, unit)
     if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_HEALTH" and unit == "target") then
         UpdateHealth()
+    end
+    if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_POWER_UPDATE" and unit == "target") then
+        UpdatePower()
     end
     if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_AURA" and unit == "target") then
         UpdateAura()

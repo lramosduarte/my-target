@@ -4,4 +4,4 @@
 ## Author: Leonardo Ramos Duarte
 ## Version: 0.0.0
 
-MyTarget.lua
+my-target.lua
