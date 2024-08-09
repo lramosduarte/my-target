@@ -1,0 +1,7 @@
+## Interface: 100007
+## Title: My Target
+## Notes: A simple addon to display target information.
+## Author: Leonardo Ramos Duarte
+## Version: 0.0.0
+
+my-target.lua
