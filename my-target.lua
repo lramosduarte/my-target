@@ -1,4 +1,5 @@
 local maxAuras = 40
+local aurasPerRow = 5
 local targetDebuffs = {}
 local targetBuffs = {}
 
@@ -129,10 +130,6 @@ local powerTextRight = powerBar:CreateFontString(nil, "OVERLAY")
 powerTextRight:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
 powerTextRight:SetPoint("RIGHT", powerBar, "RIGHT", 0, 0)
 
-for k, _ in pairs(PowerBarColor) do
-    print(k)
-end
-
 local function UpdatePower()
     powerType, powerToken, _, _, _ = UnitPowerType("target")
     if not powerToken then
@@ -141,15 +138,17 @@ local function UpdatePower()
     local power = UnitPower("target")
     local maxPower = UnitPowerMax("target")
     local percent = power / maxPower * 100
-    powerInfo = PowerBarColor[powerToken]
-
     powerBar:SetMinMaxValues(0, maxPower)
     powerBar:SetValue(power)
-    powerBar:SetStatusBarColor(powerInfo.r, powerInfo.g, powerInfo.b)
-
     powerTextLeft:SetText(power .. " / " .. maxPower)
-    powerTextCenter:SetText(powerInfo.atlasElementName)
     powerTextRight:SetText(string.format("%.1f", percent))
+
+    powerInfo = PowerBarColor[powerToken]
+    if powerInfo then
+        powerBar:SetStatusBarColor(powerInfo.r, powerInfo.g, powerInfo.b)
+        powerTextCenter:SetText(powerInfo.atlasElementName)
+    end
+
 end
 
 local function CreateIconFrame(w, h)
@@ -179,8 +178,14 @@ local function ShowAura(index, auras, direction, anchorDefault, auraFunc, toolti
 
     local name, icon, count, magicType, duration, expirationTime, source, isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, nameplateShowAll, timeMod, _ = auraFunc("target", index)
     if name then
-        local w, _ = auras[index]:GetSize()
-        auras[index]:SetPoint("CENTER", lastAuraIcon, direction, w * directionModifier[direction], 0)
+        local yOffSet = 0
+        local w, h = auras[index]:GetSize()
+        if (index -1) % aurasPerRow == 0 then
+            lastAuraIcon = anchorDefault
+            local row = math.floor((index - 1) / aurasPerRow)
+            yOffSet = h * row * -1
+        end
+        auras[index]:SetPoint("CENTER", lastAuraIcon, direction, (w - 3) * directionModifier[direction], yOffSet)
         auras[index].texture:SetTexture(icon)
         auras[index]:Show()
         auras[index]:SetScript("OnEnter", tooltipFunc)
