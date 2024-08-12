@@ -1,4 +1,4 @@
-## Interface: 100007
+## Interface: 100207, 110000
 ## Title: My Target
 ## Notes: A simple addon to display target information.
 ## Author: Leonardo Ramos Duarte
