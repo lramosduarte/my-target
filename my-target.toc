@@ -1,7 +1,7 @@
-## Interface: 100207, 110000
+## Interface: 100207, 110000, 110002
 ## Title: My Target
 ## Notes: A simple addon to display target information.
 ## Author: Leonardo Ramos Duarte
-## Version: 0.0.0
+## Version: 1.0.0
 
 my-target.lua
