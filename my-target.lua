@@ -4,10 +4,10 @@ local targetDebuffs = {}
 local targetBuffs = {}
 
 local rarityUnits = {
-    rare = {label = "Rare", rgb = {177, 159, 247}},
-    elite = {label = "Elite", rgb = {192, 192, 192}},
-    rareelite = {label = "Rare Elite", rgb = {247, 245, 159}},
-    minus = {label = "Minus", rgb = {204, 255, 229}},
+    rare = {label = "Rare", rgb = {0.5, 0.32, 0.55}},
+    elite = {label = "Elite", rgb = {1, 1, 1}},
+    rareelite = {label = "Rare Elite", rgb = {1.00, 0.96, 0.41}},
+    minus = {label = "Minus", rgb = {0, 0.82, 1.00}},
 }
 
 local spellTypes = {
@@ -39,6 +39,7 @@ healthBar:GetStatusBarTexture():SetHorizTile(false)
 healthBar:SetMinMaxValues(0, UnitHealthMax("target"))
 healthBar:SetValue(UnitHealth("target"))
 healthBar:SetStatusBarColor(1, 0, 0)
+healthBar:Hide()
 
 local healthBarBg = healthBar:CreateTexture(nil, "BACKGROUND")
 healthBarBg:SetAllPoints(true)
@@ -76,6 +77,11 @@ healthTextRight:SetPoint("RIGHT", healthBar, "RIGHT", 0, 0)
 
 
 local function UpdateHealth()
+    healthBar:Hide()
+    local name =  UnitName("target")
+    if not name then
+        return
+    end
     local health = UnitHealth("target")
     local maxHealth = UnitHealthMax("target")
     local percent = health / maxHealth * 100
@@ -85,15 +91,17 @@ local function UpdateHealth()
     healthBar:SetValue(health)
 
     healthTextLeft:SetText(health .. " / " .. maxHealth)
-    healthTextCenter:SetText(UnitName("target"))
+    healthTextCenter:SetText(name)
     healthTextRight:SetText(string.format("%.1f", percent))
     unitClassText:SetText(UnitCreatureType("target"))
 
-    healthBarBorder:SetBackdropBorderColor(1,0,0)
+    healthBarBorder:SetBackdropBorderColor(1.00, 0, 0)
     if rarityUnits[unitClass] then
         unitClassText:SetText(rarityUnits[unitClass].label .. " - " .. UnitCreatureType("target"))
         healthBarBorder:SetBackdropBorderColor(unpack(rarityUnits[unitClass].rgb))
     end
+
+    healthBar:Show()
 end
 
 
@@ -104,19 +112,12 @@ powerBar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
 powerBar:GetStatusBarTexture():SetHorizTile(false)
 powerBar:SetMinMaxValues(0, UnitHealthMax("target"))
 powerBar:SetValue(UnitHealth("target"))
+powerBar:Hide()
 
-local powerBarBG = healthBar:CreateTexture(nil, "BACKGROUND")
+local powerBarBG = powerBar:CreateTexture(nil, "BACKGROUND")
 powerBarBG:SetAllPoints(true)
 powerBarBG:SetTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
 powerBarBG:SetVertexColor(1, 0.25, 0.25, 0.1)
-
--- local healthBarBorder = CreateFrame("Frame", nil, healthBar, BackdropTemplateMixin and "BackdropTemplate")
--- healthBarBorder:SetPoint("TOPLEFT", healthBar, "TOPLEFT", -5, 6)
--- healthBarBorder:SetPoint("BOTTOMRIGHT", healthBar, "BOTTOMRIGHT", 5, -6)
--- healthBarBorder:SetBackdrop({
---     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
---     edgeSize = 16,
--- })
 
 local powerTextLeft = powerBar:CreateFontString(nil, "OVERLAY")
 powerTextLeft:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
@@ -130,9 +131,36 @@ local powerTextRight = powerBar:CreateFontString(nil, "OVERLAY")
 powerTextRight:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
 powerTextRight:SetPoint("RIGHT", powerBar, "RIGHT", 0, 0)
 
+local shieldBar = CreateFrame("StatusBar", nil, healthBar)
+shieldBar:SetSize(healthBar:GetSize())
+shieldBar:SetPoint("CENTER", healthBar, "CENTER", 0, 0)
+shieldBar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
+shieldBar:GetStatusBarTexture():SetHorizTile(false)
+shieldBar:SetStatusBarColor(1, 1, 1)
+shieldBar:Hide()
+
+local shieldBarBG = shieldBar:CreateTexture(nil, "BACKGROUND")
+shieldBarBG:SetAllPoints(true)
+shieldBarBG:SetTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
+
+local shieldBarText = shieldBar:CreateFontString(nil, "OVERLAY")
+shieldBarText:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+shieldBarText:SetPoint("CENTER", shieldBar, "CENTER", 0, 0)
+
+local function UpdateShield()
+    shieldBar:Hide()
+    local shield = UnitGetTotalAbsorbs("target")
+    if shield > 0 then
+        shieldBarText:SetText("Shield - " .. shield)
+        shieldBar:Show()
+    end
+end
+
+
 local function UpdatePower()
     powerType, powerToken, _, _, _ = UnitPowerType("target")
     if not powerToken then
+        powerBar:Hide()
         return
     end
     local power = UnitPower("target")
@@ -148,7 +176,7 @@ local function UpdatePower()
         powerBar:SetStatusBarColor(powerInfo.r, powerInfo.g, powerInfo.b)
         powerTextCenter:SetText(powerInfo.atlasElementName)
     end
-
+    powerBar:Show()
 end
 
 local function CreateIconFrame(w, h)
@@ -174,6 +202,7 @@ end
 
 local function ShowAura(index, auras, direction, anchorDefault, auraFunc, tooltipFunc)
     auras[index]:Hide()
+
     local lastAuraIcon = auras[index - 1] or anchorDefault
 
     local name, icon, count, magicType, duration, expirationTime, source, isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, nameplateShowAll, timeMod, _ = auraFunc("target", index)
@@ -185,10 +214,17 @@ local function ShowAura(index, auras, direction, anchorDefault, auraFunc, toolti
             local row = math.floor((index - 1) / aurasPerRow)
             yOffSet = h * row * -1
         end
+
         auras[index]:SetPoint("CENTER", lastAuraIcon, direction, (w - 3) * directionModifier[direction], yOffSet)
         auras[index].texture:SetTexture(icon)
         auras[index]:Show()
         auras[index]:SetScript("OnEnter", tooltipFunc)
+    end
+    if count and count > 0 then
+        local label = auras[index]:CreateFontString(nil, "OVERLAY")
+        label:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+        label:SetPoint("CENTER", auras[index], "BOTTOMRIGHT", 0, 0)
+        label:SetText(count)
     end
 end
 
@@ -257,26 +293,31 @@ frame:RegisterEvent("UNIT_HEALTH")
 frame:RegisterEvent("UNIT_POWER_UPDATE")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("UNIT_SPELLCAST_START")
+frame:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
 frame:RegisterEvent("UNIT_SPELLCAST_STOP")
 frame:RegisterEvent("UNIT_SPELLCAST_FAILED")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 frame:SetScript("OnEvent", function(self, event, unit)
-    if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_HEALTH" and unit == "target") then
+    if event == "PLAYER_TARGET_CHANGED" then
+        UpdateHealth()
+        UpdatePower()
+        UpdateAura()
+        UpdateShield()
+    end
+    if event == "UNIT_HEALTH" then
         UpdateHealth()
     end
-    if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_POWER_UPDATE" and unit == "target") then
+    if event == "UNIT_POWER_UPDATE"then
         UpdatePower()
     end
-    if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_AURA" and unit == "target") then
+    if event == "UNIT_AURA" then
         UpdateAura()
     end
-
-    if unit ~= "target" then
-        return
+    if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
+        UpdateShield()
     end
-
     if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
         UpdateCastBar()
     elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP" or event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_FAILED" then
@@ -284,6 +325,15 @@ frame:SetScript("OnEvent", function(self, event, unit)
     elseif event == "UNIT_TARGET" then
         UpdateCastBar()
     end
+    -- if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_HEALTH" and unit == "target") then
+    --     UpdateHealth()
+    -- end
+    -- if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_POWER_UPDATE" and unit == "target") then
+    --     UpdatePower()
+    -- end
+    -- if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_AURA" and unit == "target") then
+    --     UpdateAura()
+    -- end
 end)
 castBarFrame:SetScript("OnUpdate", function(self, elapsed)
     if castBarFrame:IsShown() then
