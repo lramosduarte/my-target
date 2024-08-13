@@ -205,8 +205,12 @@ local function ShowAura(index, auras, direction, anchorDefault, auraFunc, toolti
 
     local lastAuraIcon = auras[index - 1] or anchorDefault
 
-    local name, icon, count, magicType, duration, expirationTime, source, isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, nameplateShowAll, timeMod, _ = auraFunc("target", index)
-    if name then
+    local aura = auraFunc("target", index)
+    if not aura then
+        return
+    end
+
+    if aura.name then
         local yOffSet = 0
         local w, h = auras[index]:GetSize()
         if (index -1) % aurasPerRow == 0 then
@@ -216,11 +220,11 @@ local function ShowAura(index, auras, direction, anchorDefault, auraFunc, toolti
         end
 
         auras[index]:SetPoint("CENTER", lastAuraIcon, direction, (w - 3) * directionModifier[direction], yOffSet)
-        auras[index].texture:SetTexture(icon)
+        auras[index].texture:SetTexture(aura.icon)
         auras[index]:Show()
         auras[index]:SetScript("OnEnter", tooltipFunc)
     end
-    if count and count > 0 then
+    if aura.count and aura.count > 0 then
         local label = auras[index]:CreateFontString(nil, "OVERLAY")
         label:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
         label:SetPoint("CENTER", auras[index], "BOTTOMRIGHT", 0, 0)
@@ -232,13 +236,13 @@ end
 local function UpdateAura()
     local lastDebuff, lastBuff = anchorDebuff, anchorBuff
     for i = 1, maxAuras do
-        ShowAura(i, targetDebuffs, "LEFT", anchorDebuff, UnitDebuff, function(self)
+        ShowAura(i, targetDebuffs, "LEFT", anchorDebuff, C_UnitAuras.GetDebuffDataByIndex, function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetUnitDebuff("target", i)
             GameTooltip:Show()
         end)
 
-        ShowAura(i, targetBuffs, "RIGHT", anchorBuff, UnitBuff, function(self)
+        ShowAura(i, targetBuffs, "RIGHT", anchorBuff, C_UnitAuras.GetBuffDataByIndex, function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetUnitBuff("target", i)
             GameTooltip:Show()
@@ -260,12 +264,23 @@ local castBarFrameBG = castBarFrame:CreateTexture(nil, "BACKGROUND")
 castBarFrameBG:SetAllPoints(true)
 castBarFrameBG:SetColorTexture(0, 0, 0, 0.5)
 
+local castBarFrameTick = castBarFrame:CreateTexture(nil, "OVERLAY")
+castBarFrameTick:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+castBarFrameTick:SetVertexColor(1, 0, 0, 1)
+castBarFrameTick:SetWidth(2)
+castBarFrameTick:SetHeight(castBarFrame:GetHeight())
+
 local castBarFrameSpellText = castBarFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 castBarFrameSpellText:SetPoint("CENTER", castBarFrame)
 castBarFrameSpellText:SetText("")
+local castBarFrameSpellTimerText = castBarFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+castBarFrameSpellTimerText:SetFont("Fonts\\FRIZQT__.TTF", 5, "OUTLINE")
+castBarFrameSpellTimerText:SetPoint("RIGHT", castBarFrame)
 local castStartTime, castEndTime
 
 local function UpdateCastBar()
+    castBarFrame:Hide()
+
     local name, _, _, startTime, endTime, _, _, notInterruptible = UnitCastingInfo("target")
     if not name then
         name, _, _, startTime, endTime, _, notInterruptible = UnitChannelInfo("target")
@@ -281,8 +296,12 @@ local function UpdateCastBar()
         castBarFrame:SetValue(GetTime())
         castBarFrameSpellText:SetText(name)
         castBarFrame:Show()
-    else
-        castBarFrame:Hide()
+
+        local _, _, _, lagWorld = GetNetStats()
+        local latencyOffSet = lagWorld / 1000 / (castEndTime - castStartTime)
+        castBarFrameTick:ClearAllPoints()
+        castBarFrameTick:SetPoint("CENTER", castBarFrame, "RIGHT", castBarFrame:GetWidth() * latencyOffSet * -1, 0)
+        castBarFrameTick:Show()
     end
 end
 
@@ -292,8 +311,9 @@ frame:RegisterEvent("UNIT_TARGET")
 frame:RegisterEvent("UNIT_HEALTH")
 frame:RegisterEvent("UNIT_POWER_UPDATE")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-frame:RegisterEvent("UNIT_SPELLCAST_START")
 frame:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
+frame:RegisterEvent("UNIT_SPELLCAST_START")
+frame:RegisterEvent("UNIT_SPELLCAST_DELAYED")
 frame:RegisterEvent("UNIT_SPELLCAST_STOP")
 frame:RegisterEvent("UNIT_SPELLCAST_FAILED")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
@@ -318,31 +338,24 @@ frame:SetScript("OnEvent", function(self, event, unit)
     if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
         UpdateShield()
     end
-    if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
+    if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" or event == "UNIT_SPELLCAST_DELAYED" then
         UpdateCastBar()
     elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP" or event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_FAILED" then
         castBarFrame:Hide()
     elseif event == "UNIT_TARGET" then
         UpdateCastBar()
     end
-    -- if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_HEALTH" and unit == "target") then
-    --     UpdateHealth()
-    -- end
-    -- if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_POWER_UPDATE" and unit == "target") then
-    --     UpdatePower()
-    -- end
-    -- if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_AURA" and unit == "target") then
-    --     UpdateAura()
-    -- end
 end)
 castBarFrame:SetScript("OnUpdate", function(self, elapsed)
     if castBarFrame:IsShown() then
         local currentTime = GetTime()
         if castEndTime == nil or currentTime >= castEndTime then
             castBarFrame:Hide()
-        else
-            castBarFrame:SetValue(currentTime)
+            return
         end
+        castBarFrame:SetValue(currentTime)
+        local castTime = currentTime - castEndTime
+        castBarFrameSpellTimerText:SetText(string.format("%.1f", castTime))
     end
 end)
 

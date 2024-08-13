@@ -12,6 +12,7 @@ Addon stable BUT in WORK IN PROGRESS state. I've a lot of thinks to implement an
    - Rare
    - Rare Elite
  - List of buffs and debuffs
+ - Target castbar with latency tick
 ## Screenshots
 ![image](https://github.com/user-attachments/assets/2013637c-a80f-4556-a693-75400848e90d)
 ![image](https://github.com/user-attachments/assets/3f88d72b-a80a-4dde-9442-7f45ef47fff2)
@@ -22,7 +23,6 @@ Addon stable BUT in WORK IN PROGRESS state. I've a lot of thinks to implement an
 ## TODO
  - Highlight priority buffs and debuffs
  - Adjust spaces between frames
- - Target castbar with latency tick
  - Target from target information
  - [PVP] Border and target name colors based on class
  - Window settings
